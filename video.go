@@ -51,13 +51,14 @@ type VideoOutputs struct {
 
 // VideoOptions is the set of options for converting frames to a GIF.
 type VideoOptions struct {
-	Framerate     int
-	PlaybackSpeed float64
-	Input         string
-	MaxColors     int
-	Output        VideoOutputs
-	StartingFrame int
-	Style         *StyleOptions
+	Framerate       int
+	ActualFramerate float64 // Actual capture rate (totalFrames / wallDuration)
+	PlaybackSpeed   float64
+	Input           string
+	MaxColors       int
+	Output          VideoOutputs
+	StartingFrame   int
+	Style           *StyleOptions
 }
 
 const (
