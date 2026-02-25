@@ -51,13 +51,14 @@ type VideoOutputs struct {
 
 // VideoOptions is the set of options for converting frames to a GIF.
 type VideoOptions struct {
-	Framerate     int
-	PlaybackSpeed float64
-	Input         string
-	MaxColors     int
-	Output        VideoOutputs
-	StartingFrame int
-	Style         *StyleOptions
+	Framerate       int
+	ActualFramerate float64 // Actual capture rate (totalFrames / wallDuration)
+	PlaybackSpeed   float64
+	Input           string
+	MaxColors       int
+	Output          VideoOutputs
+	StartingFrame   int
+	Style           *StyleOptions
 }
 
 const (
@@ -117,12 +118,18 @@ func buildFFopts(opts VideoOptions, targetFile string) []string {
 	// Input frame options, used no matter what
 	// Stream 0: text frames
 	// Stream 1: cursor frames
+	// Use actual capture rate if available so video duration matches
+	// wall-clock time even when CanvasToImage is slower than the target.
+	inputRate := fmt.Sprint(opts.Framerate)
+	if opts.ActualFramerate > 0 {
+		inputRate = fmt.Sprintf("%.4f", opts.ActualFramerate)
+	}
 	streamBuilder.args = append(streamBuilder.args,
 		"-y",
-		"-r", fmt.Sprint(opts.Framerate),
+		"-r", inputRate,
 		"-start_number", fmt.Sprint(opts.StartingFrame),
 		"-i", filepath.Join(opts.Input, textFrameFormat),
-		"-r", fmt.Sprint(opts.Framerate),
+		"-r", inputRate,
 		"-start_number", fmt.Sprint(opts.StartingFrame),
 		"-i", filepath.Join(opts.Input, cursorFrameFormat),
 	)

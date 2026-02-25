@@ -257,6 +257,20 @@ func (vhs *VHS) Render() error {
 		vhs.Options.Video.Style.FontSize = vhs.Options.FontSize
 	}
 
+	// Compute actual capture framerate from wall-clock timestamps so
+	// ffmpeg uses the right input rate (CanvasToImage is slower than
+	// the target framerate, so we capture fewer frames than expected).
+	// NOTE: totalFrames counts PNG frames written to disk, while
+	// svgFrames may have fewer entries if CaptureSVGFrame failed for
+	// some frames. We intentionally use totalFrames here because ffmpeg
+	// consumes the PNG sequence, so its input rate must match the PNG count.
+	if len(vhs.svgFrames) > 0 {
+		wallDuration := vhs.svgFrames[len(vhs.svgFrames)-1].Timestamp
+		if wallDuration > 0 && vhs.totalFrames > 0 {
+			vhs.Options.Video.ActualFramerate = float64(vhs.totalFrames) / wallDuration
+		}
+	}
+
 	// Generate the video(s) with the frames.
 	var cmds []*exec.Cmd
 	cmds = append(cmds, MakeGIF(vhs.Options.Video))
