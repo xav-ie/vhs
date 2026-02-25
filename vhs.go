@@ -363,7 +363,13 @@ func (vhs *VHS) Record(ctx context.Context) <-chan error {
 	//nolint: mnd
 	go func() {
 		counter := 0
-		start := time.Now()
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		// Track wall-clock elapsed recording time so SVG timestamps
+		// reflect real duration even when CanvasToImage is slower
+		// than the tick interval (Go's Ticker drops missed ticks).
+		var svgElapsed time.Duration
+		var lastFrameTime time.Time
 		for {
 			select {
 			case <-ctx.Done():
@@ -376,16 +382,23 @@ func (vhs *VHS) Record(ctx context.Context) <-chan error {
 				close(ch)
 				return
 
-			case <-time.After(interval - time.Since(start)):
-				// record last attempt
-				start = time.Now()
+			case <-ticker.C:
 
 				if !vhs.recording {
+					// Reset frame timer when hidden so we don't count the gap.
+					lastFrameTime = time.Time{}
 					continue
 				}
 				if vhs.Page == nil {
 					continue
 				}
+
+				// Accumulate only the time spent while visible.
+				now := time.Now()
+				if !lastFrameTime.IsZero() {
+					svgElapsed += now.Sub(lastFrameTime)
+				}
+				lastFrameTime = now
 
 				cursor, cursorErr := vhs.CursorCanvas.CanvasToImage("image/png", quality)
 				text, textErr := vhs.TextCanvas.CanvasToImage("image/png", quality)
@@ -414,7 +427,7 @@ func (vhs *VHS) Record(ctx context.Context) <-chan error {
 
 				// Capture SVG frame data if SVG output is requested
 				if vhs.Options.Video.Output.SVG != "" {
-					svgFrame, err := CaptureSVGFrame(vhs.Page, counter, vhs.Options.Video.Framerate)
+					svgFrame, err := CaptureSVGFrame(vhs.Page, svgElapsed.Seconds())
 					if err != nil {
 						log.Printf("Error capturing SVG frame %d: %v", counter, err)
 					} else if svgFrame != nil {

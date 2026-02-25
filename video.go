@@ -183,8 +183,16 @@ func MakeSVG(v *VHS) error {
 	log.Println(GrayStyle.Render("Creating " + v.Options.Video.Output.SVG + "..."))
 	ensureDir(v.Options.Video.Output.SVG)
 
-	// Calculate total duration based on frame count and framerate
-	duration := float64(len(v.svgFrames)) / float64(v.Options.Video.Framerate)
+	// Use wall-clock duration from the last frame's timestamp.
+	// CanvasToImage is slower than the target frame interval, so we
+	// capture fewer frames than framerate × duration would predict.
+	// The SVG animation must span the real elapsed time so playback
+	// speed is correct, and we pass the actual capture rate to ffmpeg
+	// so the MP4 matches.
+	duration := v.svgFrames[len(v.svgFrames)-1].Timestamp
+	if duration <= 0 {
+		duration = float64(v.totalFrames) / float64(v.Options.Video.Framerate)
+	}
 
 	// Create SVG config
 	svgOpts := SVGConfig{
