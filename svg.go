@@ -330,7 +330,19 @@ func (g *SVGGenerator) Generate() string {
 
 	sb.WriteString("</g>") // Close animation container
 	g.writeNewline(&sb)
+
+	// Progress bar: full-width bar at bottom that grows left to right via scaleX.
+	// Placed inside the inner SVG so the CSS animation rule (also in this scope) applies
+	// in both browsers and non-browser renderers (librsvg, Inkscape, etc.).
+	sb.WriteString(fmt.Sprintf(`<rect class="progress-bar" x="0" y="%d" width="%s" height="1" fill="#9B79FF"/>`,
+		innerHeight-1, formatCoord(viewBoxWidth)))
+	g.writeNewline(&sb)
 	sb.WriteString("</svg>") // Close inner SVG
+	g.writeNewline(&sb)
+
+	// Progress bar: full-width bar at bottom that grows left to right via scaleX
+	sb.WriteString(fmt.Sprintf(`<rect class="progress-bar" x="0" y="%d" width="%d" height="1" fill="#9B79FF"/>`,
+		totalHeight-1, totalWidth))
 	g.writeNewline(&sb)
 
 	// Close margin group if opened
@@ -1091,6 +1103,13 @@ func (g *SVGGenerator) generateStyles() string {
 	sb.WriteString(fmt.Sprintf("  animation: slide %ss step-end %ss infinite;", formatDuration(animationDuration), formatDuration(animationDelay)))
 	g.writeNewline(&sb)
 	sb.WriteString("}")
+	g.writeNewline(&sb)
+
+	// Progress bar: linear animation advances continuously, proving pauses are real
+	// regardless of how many step-end keyframes the terminal content generates.
+	sb.WriteString("@keyframes progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }")
+	g.writeNewline(&sb)
+	sb.WriteString(fmt.Sprintf(".progress-bar { transform-origin: 0 0; animation: progress %ss linear %ss infinite; }", formatDuration(animationDuration), formatDuration(animationDelay)))
 	g.writeNewline(&sb)
 	g.writeNewline(&sb)
 
